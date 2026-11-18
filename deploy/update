@@ -1,0 +1,39 @@
+#!/bin/sh
+# Deploys a signed tag. Installed as /usr/local/sbin/keychain-update, run as root:
+#   keychain-update v0.2.1
+#
+# Only tags signed by a key in ALLOWED_SIGNERS get deployed. Anyone who can push
+# to the repo can't get code into the service without that key.
+#
+# Never run this file from the checkout. It would be running unverified code.
+# Copy it to /usr/local/sbin after you've read it, and again when it changes.
+set -eu
+
+APP=/opt/bitwarden-agent-keychain
+ALLOWED_SIGNERS=/etc/bitwarden-agent-keychain/allowed_signers
+TAG=${1:?usage: keychain-update <tag>}
+
+[ "$(id -u)" = 0 ] || { echo "Run as root." >&2; exit 1; }
+[ -s "$ALLOWED_SIGNERS" ] || { echo "Missing $ALLOWED_SIGNERS." >&2; exit 1; }
+
+cd "$APP"
+OLD=$(git rev-parse HEAD)
+git fetch --quiet --tags --force origin
+git -c gpg.ssh.allowedSignersFile="$ALLOWED_SIGNERS" verify-tag "$TAG"
+NEW=$(git rev-parse "$TAG^{commit}")
+
+if [ "$OLD" = "$NEW" ]; then echo "Already on $TAG."; exit 0; fi
+
+git checkout --quiet --detach "$NEW"
+# No dependency runs install scripts, so none get to.
+npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+chown -R root:root "$APP"
+chmod -R go-w "$APP"
+
+if ! git diff --quiet "$OLD" "$NEW" -- deploy/; then
+  echo "deploy/ changed. Review and reinstall by hand:" >&2
+  git diff --stat "$OLD" "$NEW" -- deploy/ >&2
+fi
+
+systemctl restart keychain-browser bitwarden-agent-keychain
+echo "Deployed $TAG ($NEW)."

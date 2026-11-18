@@ -6,15 +6,22 @@ Needs root. The keychain and its browser run as their own user, `keychain`, so a
 
 ```sh
 # 1. User and code. Node 24+ must be at /usr/bin/node (the mise one in ~t3 isn't reachable).
+#    The code is root's and read-only to everyone else. Only signed tags get checked out.
 useradd --system --home-dir /var/lib/bitwarden-agent-keychain --shell /usr/sbin/nologin keychain
+mkdir -p /etc/bitwarden-agent-keychain
+echo '<your git email> ssh-ed25519 AAAA...' > /etc/bitwarden-agent-keychain/allowed_signers   # your signing key's public half
 git clone https://github.com/michal-skoula/bitwarden-agent-keychain /opt/bitwarden-agent-keychain
 cd /opt/bitwarden-agent-keychain
-npm ci --omit=dev
+git -c gpg.ssh.allowedSignersFile=/etc/bitwarden-agent-keychain/allowed_signers verify-tag v0.2.0
+git checkout --detach v0.2.0
+npm ci --omit=dev --ignore-scripts
+chown -R root:root . && chmod -R go-w .
 PLAYWRIGHT_BROWSERS_PATH=/opt/bitwarden-agent-keychain/browsers npx playwright-core install --with-deps chromium
 
 # 2. Units and the admin wrapper.
 install -m 0644 deploy/bitwarden-agent-keychain.service deploy/keychain-browser.service /etc/systemd/system/
 install -m 0755 deploy/keychain /usr/local/bin/keychain
+install -m 0755 deploy/update /usr/local/sbin/keychain-update
 systemctl daemon-reload
 mkdir -p /var/lib/bitwarden-agent-keychain && chown keychain:keychain /var/lib/bitwarden-agent-keychain && chmod 700 /var/lib/bitwarden-agent-keychain
 
@@ -56,10 +63,23 @@ systemctl restart bitwarden-agent-keychain
 
 ## Updating
 
+The service holds an unlocked vault, so whatever code it runs can read every password. Anyone with push access to the repo, including agents on this machine, could get code onto `main`. That's why the server deploys only tags signed with a key that lives on your Mac, never `main`, and never on a timer.
+
+On the Mac, after reading the diff (including `package-lock.json`):
+
 ```sh
-cd /opt/bitwarden-agent-keychain && git pull && npm ci --omit=dev
-systemctl restart bitwarden-agent-keychain
+git config gpg.format ssh
+git config user.signingkey ~/.ssh/id_ed25519.pub
+git tag -s v0.2.1 -m v0.2.1 <commit> && git push origin v0.2.1
 ```
+
+On the server, as root:
+
+```sh
+keychain-update v0.2.1
+```
+
+It refuses unsigned tags or tags from other keys, runs `npm ci` without install scripts, and restarts both units. If `deploy/` changed, it lists the files. Review them and reinstall by hand. That includes `deploy/update` itself, which is never run from the checkout.
 
 Pending wipes are in the store, so a restart wipes everything that was still waiting.
 
