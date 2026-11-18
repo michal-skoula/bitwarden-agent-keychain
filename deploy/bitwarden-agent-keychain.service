@@ -1,0 +1,43 @@
+[Unit]
+Description=Bitwarden agent keychain (MCP + admin UI)
+After=network-online.target keychain-browser.service
+Wants=network-online.target keychain-browser.service
+
+[Service]
+Type=simple
+User=keychain
+Group=keychain
+WorkingDirectory=/opt/bitwarden-agent-keychain
+ExecStart=/usr/bin/node src/main.ts
+Restart=on-failure
+RestartSec=5
+
+# State: SQLite store, bw CLI data. Only the keychain user can read it.
+StateDirectory=bitwarden-agent-keychain
+StateDirectoryMode=0700
+Environment=BITWARDENCLI_APPDATA_DIR=%S/bitwarden-agent-keychain/bw
+# Session key written by `keychain setup-session`. systemd hands it to the
+# service in $CREDENTIALS_DIRECTORY; the master password is never stored.
+LoadCredential=bw-session:/var/lib/bitwarden-agent-keychain/bw-session
+
+Environment=TZ=Europe/Prague
+Environment=KEYCHAIN_PORT=8765
+Environment=KEYCHAIN_ADMIN_PORT=8766
+Environment=KEYCHAIN_CDP_ENDPOINT=http://127.0.0.1:9222
+Environment=KEYCHAIN_WIPE_AFTER_MIN=30
+# Uncomment when the reverse proxy serves /mcp under a public name:
+#Environment=KEYCHAIN_PUBLIC_URL=https://keychain.example/mcp
+#Environment=KEYCHAIN_ALLOWED_HOSTS=keychain.example
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

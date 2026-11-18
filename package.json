@@ -1,0 +1,42 @@
+{
+  "name": "bitwarden-agent-keychain",
+  "version": "0.2.0",
+  "description": "MCP server that fills Bitwarden logins into a Playwright-driven browser without exposing them to the agent",
+  "scripts": {
+    "start": "node src/main.ts",
+    "browser": "node src/launch-browser.ts",
+    "keychain": "node src/cli.ts",
+    "test": "node --test test/",
+    "typecheck": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/michal-skoula/bitwarden-agent-keychain.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/michal-skoula/bitwarden-agent-keychain/issues"
+  },
+  "homepage": "https://github.com/michal-skoula/bitwarden-agent-keychain#readme",
+  "dependencies": {
+    "@bitwarden/cli": "^2026.10.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "playwright-core": "^1.65.1",
+    "tldts": "^7.5.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "^0.0.85",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  },
+  "bin": {
+    "keychain": "src/cli.ts"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  }
+}

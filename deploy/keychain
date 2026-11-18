@@ -1,0 +1,11 @@
+#!/bin/sh
+# Admin wrapper, installed as /usr/local/bin/keychain. Runs the CLI (or bw)
+# as the service user against the service's state directory.
+#   keychain token list
+#   keychain bw login
+set -e
+APP=/opt/bitwarden-agent-keychain
+STATE=/var/lib/bitwarden-agent-keychain
+run() { exec sudo -u keychain env KEYCHAIN_STATE_DIR="$STATE" BITWARDENCLI_APPDATA_DIR="$STATE/bw" TZ=Europe/Prague "$@"; }
+if [ "$1" = "bw" ]; then shift; run "$APP/node_modules/.bin/bw" "$@"; fi
+run /usr/bin/node "$APP/src/cli.ts" "$@"

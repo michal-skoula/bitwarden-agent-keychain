@@ -1,0 +1,25 @@
+[Unit]
+Description=Shared Chromium for the Bitwarden agent keychain (CDP on 127.0.0.1:9222)
+After=network-online.target
+
+[Service]
+Type=simple
+User=keychain
+Group=keychain
+WorkingDirectory=/opt/bitwarden-agent-keychain
+ExecStart=/usr/bin/node src/launch-browser.ts
+Restart=on-failure
+RestartSec=5
+StateDirectory=bitwarden-agent-keychain
+Environment=BROWSER_PROFILE=%S/bitwarden-agent-keychain/browser-profile
+Environment=BROWSER_HEADLESS=1
+Environment=BROWSER_CDP_PORT=9222
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/bitwarden-agent-keychain/browsers
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
